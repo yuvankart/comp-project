@@ -1,0 +1,17 @@
+<program> ::= <function_decl>+
+<function_decl> ::= "int" IDENT "(" ")" "{" <statement>* "}"
+<statement> ::= <declaration> ";" 
+              | <assignment> ";" 
+              | <loop> 
+              | <return_stmt> ";" 
+              | <block>
+<declaration> ::= "int" IDENT ("=" <expr>)?
+<assignment> ::= IDENT "=" <expr>
+<loop> ::= <while_loop> | <for_loop>
+<while_loop> ::= "while" "(" <expr> ")" <block>
+<for_loop> ::= "for" "(" <declaration>? ";" <expr>? ";" <assignment>? ")" <block>
+<return_stmt> ::= "return" <expr>?
+<block> ::= "{" <statement>* "}"
+<expr> ::= <term> (("+" | "-") <term>)*
+<term> ::= <factor> (("*" | "/" | "%") <factor>)*
+<factor> ::= IDENT | INT_LIT | FLOAT_LIT | "(" <expr> ")"
