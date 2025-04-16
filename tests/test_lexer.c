@@ -1,33 +1,49 @@
-#include "../src/lexical/lexer.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include "../src/lexical/lexer.h"
 
-void test_lexer() {
-    const char* code =
-        "int main() {\n"
-        "   int x = 5;\n"
-        "   float y = x + 3.14;\n"
-        "   while(x > 0) x--;\n"
-        "}";
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <source_file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE* file = fopen(argv[1], "r");
+    if (!file) {
+        perror("Failed to open input file");
+        return 1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long len = ftell(file);
+    rewind(file);
+
+    char* source = malloc(len + 1);
+    fread(source, 1, len, file);
+    source[len] = '\0';
+    fclose(file);
 
     Lexer lexer;
-    init_lexer(&lexer, code);
+    init_lexer(&lexer, source);
 
-    Token token;
-    
-    printf("Lexical Analysis Output:\n");
-    
+    Token tok;
     do {
-        token = get_next_token(&lexer);
-        
-        printf("Line %2d: %-15s => %s\n",
-               token.line,
-               token.lexeme,
-               token.type == TOK_ERROR ? "ERROR" : "VALID");
-        
-    } while(token.type != TOK_EOF && token.type != TOK_ERROR);
-}
+        tok = get_next_token(&lexer);
+        printf("Token: %-20s Lexeme: %-15s Line: %d\n",
+            (tok.type == TOK_EOF) ? "TOK_EOF" :
+            (tok.type == TOK_IDENT) ? "TOK_IDENT" :
+            (tok.type == TOK_INT_LIT) ? "TOK_INT_LIT" :
+            (tok.type == TOK_FLOAT_LIT) ? "TOK_FLOAT_LIT" :
+            (tok.type == TOK_IF) ? "TOK_IF" :
+            (tok.type == TOK_ELSE) ? "TOK_ELSE" :
+            (tok.type == TOK_PLUS) ? "TOK_PLUS" :
+            (tok.type == TOK_ASSIGN) ? "TOK_ASSIGN" :
+            (tok.type == TOK_SEMICOLON) ? "TOK_SEMICOLON" :
+            "OTHER",
+            tok.lexeme,
+            tok.line);
+    } while (tok.type != TOK_EOF);
 
-int main() {
-    test_lexer();
+    free(source);
     return 0;
 }

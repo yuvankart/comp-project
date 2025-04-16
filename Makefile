@@ -1,58 +1,53 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude
+CFLAGS = -Wall -Wextra -std=c99 -I./src -I./include
 
 # Directories
+LEXICAL_DIR = src/lexical
+SYNTAX_DIR = src/syntax
+SEMANTIC_DIR = src/semantic
 SRC_DIR = src
-BUILD_DIR = build
-LEXICAL_DIR = $(SRC_DIR)/lexical
-SYNTAX_DIR = $(SRC_DIR)/syntax
-TESTS_DIR = tests
-EXAMPLES_DIR = examples
+TEST_DIR = tests
 
-# Executable name
-BIN = mycc
-
-# Source files for the lexical and syntax phases
-LEXICAL_SRCS = $(wildcard $(LEXICAL_DIR)/*.c)
-SYNTAX_SRCS = $(wildcard $(SYNTAX_DIR)/*.c)
+# Source files
+LEXICAL_SRC = $(LEXICAL_DIR)/lexer.c
+SYNTAX_SRC = $(SYNTAX_DIR)/parser.c
+SEMANTIC_SRC = $(SEMANTIC_DIR)/semantic.c $(SEMANTIC_DIR)/symbol_table.c
 MAIN_SRC = $(SRC_DIR)/main.c
 
-# Object files for the lexical and syntax phases
-LEXICAL_OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(LEXICAL_SRCS))
-SYNTAX_OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SYNTAX_SRCS))
-MAIN_OBJ = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(MAIN_SRC))
+SRC_FILES = $(LEXICAL_SRC) $(SYNTAX_SRC) $(SEMANTIC_SRC) $(MAIN_SRC)
 
-# Test files
-TEST_LEXER_SRC = $(TESTS_DIR)/test_lexer.c
+# Output
+EXEC = compiler
 
-# Default target: build the compiler
-all: dirs $(BIN)
+# Test executables (optional)
+TEST_LEXER = test_lexer
+TEST_PARSER = test_parser
+TEST_SEMANTIC = test_semantic
 
-# Create necessary directories
-dirs:
-	mkdir -p $(BUILD_DIR)/lexical
-	mkdir -p $(BUILD_DIR)/syntax
+.PHONY: all clean test
 
-# Build the compiler executable
-$(BIN): $(LEXICAL_OBJS) $(SYNTAX_OBJS) $(MAIN_OBJ)
+# Build full compiler
+all: $(EXEC)
+
+$(EXEC): $(SRC_FILES)
+	$(CC) $(CFLAGS) $(SRC_FILES) -o $(EXEC)
+
+# Build and run tests
+test: $(TEST_LEXER) $(TEST_PARSER) $(TEST_SEMANTIC)
+
+$(TEST_LEXER): $(TEST_DIR)/test_lexer.c $(LEXICAL_SRC)
 	$(CC) $(CFLAGS) $^ -o $@
+	./$@
 
-# Compile source files into object files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+$(TEST_PARSER): $(TEST_DIR)/test_parser.c $(LEXICAL_SRC) $(SYNTAX_SRC)
+	$(CC) $(CFLAGS) $^ -o $@
+	./$@
+
+$(TEST_SEMANTIC): $(TEST_DIR)/test_semantic.c $(SEMANTIC_SRC)
+	$(CC) $(CFLAGS) $^ -o $@
+	./$@
 
 # Clean build artifacts
 clean:
-	rm -rf $(BUILD_DIR) $(BIN) lexer_test
-
-# Run the compiler with a sample program
-run: $(BIN)
-	./$(BIN) $(EXAMPLES_DIR)/sample_program.txt
-
-# Test the lexical analyzer
-test_lexer:
-	$(CC) $(CFLAGS) $(TEST_LEXER_SRC) $(LEXICAL_SRCS) -o lexer_test
-	./lexer_test
-
-.PHONY: all clean run test_lexer dirs
+	rm -f $(EXEC) $(TEST_LEXER) $(TEST_PARSER) $(TEST_SEMANTIC)

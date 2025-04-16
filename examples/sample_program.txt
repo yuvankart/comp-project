@@ -1,13 +1,6 @@
-int main() {
-   int sum = 0;
+int x = 10;
+float y = x + 2.5;
 
-   for(int i=0; i<10; i++) {
-       sum += i * 2;
-   }
-
-   while(sum > 50) {
-       sum -= 5;
-   }
-
-   return sum;
+if (x > 5) {
+    y = y - 1;
 }
