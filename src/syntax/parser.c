@@ -1,296 +1,231 @@
 #include "parser.h"
-#include <stdio.h>  // Include this for fprintf and stderr
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include "../lexical/tokens.h"
+#include "../lexical/lexer.h"
 
-// Static variable for storing the current token
-static Token current_token;
+static Lexer* lexer;
+static Token currentToken;
+static Token nextToken;
 
-// Function to advance to the next token
-static void advance(Lexer* lexer) {
-    current_token = get_next_token(lexer);
+// Initialize parser with first two tokens
+static void init_parser() {
+    currentToken = get_next_token(lexer);
+    nextToken = get_next_token(lexer);
 }
 
-
-ASTNode* parse_if_else(Lexer* lexer) {
-    ASTNode* node = malloc(sizeof(ASTNode));
-    node->type = NODE_IF_ELSE;
-
-    // Expect "if"
-    if (current_token.type != TOK_IF) {
-        fprintf(stderr, "Error: Expected 'if' at line %d\n", current_token.line);
-        free(node);
-        return NULL;
-    }
-    advance(lexer);  // Skip "if"
-
-    // Expect "("
-    if (current_token.type != TOK_LPAREN) {
-        fprintf(stderr, "Error: Expected '(' after 'if' at line %d\n", current_token.line);
-        free(node);
-        return NULL;
-    }
-    advance(lexer);  // Skip "("
-
-    // Parse condition
-    node->data.if_else.expr = parse_expr(lexer);
-
-    // Expect ")"
-    if (current_token.type != TOK_RPAREN) {
-        fprintf(stderr, "Error: Expected ')' after condition at line %d\n", current_token.line);
-        free(node);
-        return NULL;
-    }
-    advance(lexer);  // Skip ")"
-
-    // Parse "if" body
-    node->data.if_else.body = parse_statement(lexer);
-
-    // Check for optional "else"
-    if (current_token.type == TOK_ELSE) {
-        advance(lexer);  // Skip "else"
-        node->data.if_else.else_body = parse_statement(lexer);
-    } else {
-        node->data.if_else.else_body = NULL;
-    }
-
-    return node;
+static Token peek() {
+    return currentToken;
 }
 
-
-
-// Parsing functions (examples provided earlier)
-ASTNode* parse_expr(Lexer* lexer) {
-    ASTNode* node = malloc(sizeof(ASTNode));
-    node->type = NODE_EXPR;
-
-    if (current_token.type == TOK_IF) {
-        return parse_if_else(lexer);
-    }
-
-    if (current_token.type == TOK_INT_LIT || current_token.type == TOK_IDENT) {
-        node->data.expr.token = current_token;
-        advance(lexer);
-        return node;
-    }
-
-    if (current_token.type == TOK_LPAREN) {
-        advance(lexer);  // Skip '('
-        node = parse_expr(lexer);
-        if (current_token.type != TOK_RPAREN) {
-            fprintf(stderr, "Error: Expected ')' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-        advance(lexer);  // Skip ')'
-        return node;
-    }
-
-    fprintf(stderr, "Error: Invalid expression at line %d\n", current_token.line);
-    free(node);
-    return NULL;
+static Token peek_next() {
+    return nextToken;
 }
 
-ASTNode* parse_statement(Lexer* lexer) {
-    if (current_token.type == TOK_INT) {
-        // Parse a declaration
-        ASTNode* node = malloc(sizeof(ASTNode));
-        node->type = NODE_DECLARATION;
-        advance(lexer);  // Skip 'int'
-
-        if (current_token.type != TOK_IDENT) {
-            fprintf(stderr, "Error: Expected identifier at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-
-        node->data.statement.token = current_token;  // Store identifier
-        advance(lexer);  // Skip identifier
-
-        if (current_token.type == TOK_ASSIGN) {
-            advance(lexer);  // Skip '='
-            node->data.statement.expr = parse_expr(lexer);
-        }
-
-        if (current_token.type != TOK_SEMICOLON) {
-            fprintf(stderr, "Error: Expected ';' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-        advance(lexer);  // Skip ';'
-        
-        return node;
-    } else if (current_token.type == TOK_WHILE) {
-        // Parse a while loop
-        ASTNode* node = malloc(sizeof(ASTNode));
-        node->type = NODE_LOOP;
-        advance(lexer);  // Skip 'while'
-
-        if (current_token.type != TOK_LPAREN) {
-            fprintf(stderr, "Error: Expected '(' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-
-        advance(lexer);  // Skip '('
-        node->data.statement.expr = parse_expr(lexer);
-
-        if (current_token.type != TOK_RPAREN) {
-            fprintf(stderr, "Error: Expected ')' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-
-        advance(lexer);  // Skip ')'
-        node->data.statement.expr->next = parse_statement(lexer);  // Parse loop body
-
-        return node;
-    } else if (current_token.type == TOK_FOR) {
-        // Parse a for loop
-        ASTNode* node = malloc(sizeof(ASTNode));
-        node->type = NODE_LOOP;
-        advance(lexer);  // Skip 'for'
-
-        if (current_token.type != TOK_LPAREN) {
-            fprintf(stderr, "Error: Expected '(' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-
-        advance(lexer);  // Skip '('
-
-        // Parse initialization
-        if (current_token.type == TOK_INT) {
-            node->data.statement.expr = parse_statement(lexer);
-        }
-
-        if (current_token.type != TOK_SEMICOLON) {
-            fprintf(stderr, "Error: Expected ';' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-        
-        advance(lexer);  // Skip ';'
-
-        // Parse condition
-        node->data.statement.expr->next = parse_expr(lexer);
-
-        if (current_token.type != TOK_SEMICOLON) {
-            fprintf(stderr, "Error: Expected ';' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-
-        advance(lexer);  // Skip ';'
-
-        // Parse increment
-        node->data.statement.expr->next->next = parse_statement(lexer);
-
-        if (current_token.type != TOK_RPAREN) {
-            fprintf(stderr, "Error: Expected ')' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-
-        advance(lexer);  // Skip ')'
-        
-        node->data.statement.expr->next->next->next = parse_statement(lexer);  // Parse loop body
-
-        return node;
-    } else if (current_token.type == TOK_RETURN) {
-        ASTNode* node = malloc(sizeof(ASTNode));
-        node->type = NODE_RETURN;
-
-        advance(lexer);  // Skip 'return'
-        
-        node->data.statement.expr = parse_expr(lexer);
-
-        if (current_token.type != TOK_SEMICOLON) {
-            fprintf(stderr, "Error: Expected ';' at line %d\n", current_token.line);
-            free(node);
-            return NULL;
-        }
-        
-        advance(lexer);  // Skip ';'
-        
-        return node;
-    }
-
-    fprintf(stderr, "Error: Invalid statement at line %d\n", current_token.line);
-    return NULL;
+static Token advance() {
+    Token prev = currentToken;
+    currentToken = nextToken;
+    nextToken = get_next_token(lexer);
+    return prev;
 }
 
-
-
-ASTNode* parse_program(Lexer* lexer) {
-    ASTNode* program = malloc(sizeof(ASTNode));
-    program->type = NODE_PROGRAM;
-
-    advance(lexer);
-
-    while (current_token.type != TOK_EOF) {
-        if (current_token.type == TOK_INT) {  // Parse a function declaration
-            ASTNode* func = malloc(sizeof(ASTNode));
-            func->type = NODE_FUNCTION;
-
-            advance(lexer);  // Skip 'int'
-
-            if (current_token.type != TOK_IDENT) {
-                fprintf(stderr, "Error: Expected function name at line %d\n", current_token.line);
-                free(func);
-                continue;
-            }
-
-            strcpy(func->data.function.name, current_token.lexeme);
-
-            advance(lexer);  // Skip function name
-
-            if (current_token.type != TOK_LPAREN) {
-                fprintf(stderr, "Error: Expected '(' at line %d\n", current_token.line);
-                free(func);
-                continue;
-            }
-
-            advance(lexer);  // Skip '('
-
-            if (current_token.type != TOK_RPAREN) {
-                fprintf(stderr, "Error: Expected ')' at line %d\n", current_token.line);
-                free(func);
-                continue;
-            }
-
-            advance(lexer);  // Skip ')'
-
-            func->data.function.body = parse_statement(lexer);
-
-            program->next = func;  // Add function to program list
-        }
-        
-        advance(lexer);  // Consume next token
+static int match(TokenType type) {
+    if (peek().type == type) {
+        advance();
+        return 1;
     }
-
-    return program;
+    return 0;
 }
 
-void free_ast(ASTNode* node) {
-    if (!node) return;
+static void error(const char* message) {
+    fprintf(stderr, "Syntax error at line %d: %s\n", peek().line, message);
+    exit(1);
+}
 
-    free_ast(node->next);
+static void expect(TokenType type, const char* message) {
+    if (!match(type)) error(message);
+}
 
-    switch (node->type) {
-        case NODE_PROGRAM:
-        case NODE_FUNCTION:
-            free_ast(node->data.function.body);
+static void statement();
+static void expression();
+static void block();
+static void declaration();
+static void for_loop();
+static void while_loop();
+static void if_statement();
+static void light_declaration();  // NEW for `for` loops
+
+static void parse_program() {
+    while (peek().type != TOK_EOF) {
+        statement();
+    }
+}
+
+static void statement() {
+    switch (peek().type) {
+        case TOK_INT:
+        case TOK_FLOAT:
+        case TOK_CHAR:
+        case TOK_VOID:
+            declaration();
             break;
-
-        case NODE_EXPR:
-            free_ast(node->data.expr.left);
-            free_ast(node->data.expr.right);
+        case TOK_IF:
+            if_statement();
             break;
-
+        case TOK_WHILE:
+            while_loop();
+            break;
+        case TOK_FOR:
+            for_loop();
+            break;
+        case TOK_RETURN:
+            advance();
+            expression();
+            expect(TOK_SEMICOLON, "Expected ';' after return");
+            break;
+        case TOK_LBRACE:
+            block();
+            break;
+        case TOK_IDENT:
+            advance();
+            if (match(TOK_ASSIGN)) {
+                expression();
+                expect(TOK_SEMICOLON, "Expected ';' after assignment");
+            } else {
+                error("Expected assignment operator after identifier");
+            }
+            break;
         default:
-            break;
+            error("Unknown or unsupported statement");
+    }
+}
+
+static void declaration() {
+    advance(); // consume type
+
+    expect(TOK_IDENT, "Expected identifier after type");
+
+    if (match(TOK_LPAREN)) {
+        // Function definition
+        expect(TOK_RPAREN, "Expected ')' after function parameters");
+        block();  // parse the body
+        return;
     }
 
-    free(node);
+    if (match(TOK_ASSIGN)) {
+        expression();
+    }
+
+    expect(TOK_SEMICOLON, "Expected ';' after declaration");
+}
+
+// Lighter version for use in `for` loop initializer
+static void light_declaration() {
+    advance(); // type
+    expect(TOK_IDENT, "Expected identifier after type");
+    if (match(TOK_ASSIGN)) {
+        expression();
+    }
+    // Don't expect semicolon here — the for-loop does that
+}
+
+static void if_statement() {
+    advance(); // 'if'
+    expect(TOK_LPAREN, "Expected '(' after if");
+    expression();
+    expect(TOK_RPAREN, "Expected ')' after if condition");
+    statement();
+    if (match(TOK_ELSE)) {
+        statement();
+    }
+}
+
+static void while_loop() {
+    advance(); // 'while'
+    expect(TOK_LPAREN, "Expected '(' after while");
+    expression();
+    expect(TOK_RPAREN, "Expected ')' after while condition");
+    statement();
+}
+
+static void for_loop() {
+    advance(); // 'for'
+    expect(TOK_LPAREN, "Expected '(' after for");
+
+    // init
+    if (peek().type == TOK_INT || peek().type == TOK_FLOAT || peek().type == TOK_CHAR || peek().type == TOK_VOID) {
+        light_declaration();  // fixed
+    } else if (peek().type != TOK_SEMICOLON) {
+        expression();
+    }
+    expect(TOK_SEMICOLON, "Expected ';' after initializer");
+
+    // condition
+    if (peek().type != TOK_SEMICOLON) {
+        expression();
+    }
+    expect(TOK_SEMICOLON, "Expected ';' after condition");
+
+    // increment
+    if (peek().type != TOK_RPAREN) {
+        expression();
+    }
+    expect(TOK_RPAREN, "Expected ')' after for");
+
+    statement();
+}
+
+static void block() {
+    expect(TOK_LBRACE, "Expected '{'");
+    while (peek().type != TOK_RBRACE && peek().type != TOK_EOF) {
+        statement();
+    }
+    expect(TOK_RBRACE, "Expected '}'");
+}
+
+static void factor() {
+    if (match(TOK_LPAREN)) {
+        expression();
+        expect(TOK_RPAREN, "Expected ')'");
+    } else if (match(TOK_IDENT)) {
+        // Support post-increment like i++
+        if (peek().type == TOK_INC) {
+            advance();  // consume ++
+        }
+        return;
+    } else if (
+        match(TOK_INT_LIT) ||
+        match(TOK_FLOAT_LIT) ||
+        match(TOK_CHAR_LIT) ||
+        match(TOK_STR_LIT)
+    ) {
+        return;
+    } else {
+        error("Expected expression factor");
+    }
+}
+
+
+static void term() {
+    factor();
+    while (peek().type == TOK_MUL || peek().type == TOK_DIV || peek().type == TOK_MOD) {
+        advance();
+        factor();
+    }
+}
+
+static void expression() {
+    term();
+    while (peek().type == TOK_PLUS || peek().type == TOK_MINUS) {
+        advance();
+        term();
+    }
+}
+
+
+void parse(Lexer* l) {
+    lexer = l;
+    init_parser();
+    parse_program();
+    printf("Parsing completed successfully.\n");
 }

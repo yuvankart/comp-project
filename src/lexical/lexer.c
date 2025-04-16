@@ -99,7 +99,6 @@ Token get_next_token(Lexer* lexer) {
 
         token.lexeme[i] = '\0';
 
-        // Keywords
         if (strcmp(token.lexeme, "int") == 0) token.type = TOK_INT;
         else if (strcmp(token.lexeme, "float") == 0) token.type = TOK_FLOAT;
         else if (strcmp(token.lexeme, "char") == 0) token.type = TOK_CHAR;
@@ -108,6 +107,7 @@ Token get_next_token(Lexer* lexer) {
         else if (strcmp(token.lexeme, "else") == 0) token.type = TOK_ELSE;
         else if (strcmp(token.lexeme, "while") == 0) token.type = TOK_WHILE;
         else if (strcmp(token.lexeme, "for") == 0) token.type = TOK_FOR;
+        else if (strcmp(token.lexeme, "do") == 0) token.type = TOK_DO;
         else if (strcmp(token.lexeme, "return") == 0) token.type = TOK_RETURN;
         else if (strcmp(token.lexeme, "printf") == 0) token.type = TOK_PRINTF;
         else if (strcmp(token.lexeme, "scanf") == 0) token.type = TOK_SCANF;
@@ -117,12 +117,15 @@ Token get_next_token(Lexer* lexer) {
     }
 
     if (isdigit(c)) return handle_number(lexer, c);
-
     if (c == '\'') return handle_char_literal(lexer);
     if (c == '"') return handle_string_literal(lexer);
 
     switch (c) {
         case '+':
+            if (lexer->source[lexer->current_pos] == '+') {
+                lexer->current_pos++;
+                return (Token){TOK_INC, "++", lexer->line};
+            }
             if (lexer->source[lexer->current_pos] == '=') {
                 lexer->current_pos++;
                 return (Token){TOK_PLUS_EQ, "+=", lexer->line};

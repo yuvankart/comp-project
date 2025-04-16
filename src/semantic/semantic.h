@@ -1,7 +1,7 @@
 #ifndef SEMANTIC_H
 #define SEMANTIC_H
 
-#include "parser.h"
+#include "../syntax/parser.h"
 
 typedef struct Symbol {
     char name[256];
